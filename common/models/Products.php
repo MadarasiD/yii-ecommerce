@@ -78,7 +78,7 @@ class Products extends \yii\db\ActiveRecord
      */
     public function getCartItems()
     {
-        return $this->hasMany(CartItems::class, ['product_id' => 'id']);
+        return $this->hasMany(CartItem::class, ['product_id' => 'id']);
     }
 
     /**
@@ -103,11 +103,11 @@ class Products extends \yii\db\ActiveRecord
 
     /**
      * {@inheritdoc}
-     * @return \common\models\query\ProductsQuery the active query used by this AR class.
+     * @return \common\models\query\ProductQuery the active query used by this AR class.
      */
     public static function find()
     {
-        return new \common\models\query\ProductsQuery(get_called_class());
+        return new \common\models\query\ProductQuery(get_called_class());
     }
 
 }
