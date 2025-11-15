@@ -4,9 +4,12 @@ namespace backend\controllers;
 
 use common\models\Products;
 use backend\models\search\ProductSearch;
+use Yii;
+use yii\web\UploadedFile;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 use yii\filters\VerbFilter;
+use yii\filters\AccessControl;
 
 /**
  * ProductController implements the CRUD actions for Products model.
@@ -69,8 +72,17 @@ class ProductController extends Controller
     {
         $model = new Products();
 
-        if ($this->request->isPost) {
-            if ($model->load($this->request->post()) && $model->save()) {
+        if ($model->load(Yii::$app->request->post())) {
+            // Fájl feltöltés
+            $model->imageFile = UploadedFile::getInstance($model, 'imageFile');
+
+            // Ha van feltöltött kép, mentjük a szerverre
+            if ($model->imageFile) {
+                $model->save(); // a modellben lévő upload() menti a frontend/web/storage mappába
+            }
+
+            // Mentjük az adatbázisba (az image mezőt is)
+            if ($model->save(false)) { // false, mert a képfeltöltés után már valid
                 return $this->redirect(['view', 'id' => $model->id]);
             }
         } else {
@@ -92,9 +104,19 @@ class ProductController extends Controller
     public function actionUpdate($id)
     {
         $model = $this->findModel($id);
+        $oldImage = $model->image; // régi kép eltárolása
 
-        if ($this->request->isPost && $model->load($this->request->post()) && $model->save()) {
-            return $this->redirect(['view', 'id' => $model->id]);
+        if ($model->load(Yii::$app->request->post())) {
+            $model->imageFile = UploadedFile::getInstance($model, 'imageFile');
+
+            // ha új kép van feltöltve, töröljük a régit
+            if ($model->imageFile && $oldImage) {
+                $model->deleteImage(); // a Products modellben létrehozott deleteImage() metódus
+            }
+
+            if ($model->save()) {
+                return $this->redirect(['view', 'id' => $model->id]);
+            }
         }
 
         return $this->render('update', [

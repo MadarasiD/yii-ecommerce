@@ -3,6 +3,9 @@
 namespace common\models;
 
 use Yii;
+use yii\behaviors\BlameableBehavior;
+use yii\behaviors\TimestampBehavior;
+use yii\helpers\FileHelper;
 
 /**
  * This is the model class for table "{{%products}}".
@@ -25,6 +28,11 @@ use Yii;
 class Products extends \yii\db\ActiveRecord
 {
 
+    /**
+     * @var \yii\web\UploadedFile
+     */
+    public $imageFile;
+
 
     /**
      * {@inheritdoc}
@@ -34,22 +42,29 @@ class Products extends \yii\db\ActiveRecord
         return '{{%products}}';
     }
 
+    public function behaviors()
+    {
+        return [
+            TimestampBehavior::class,
+            BlameableBehavior::class
+        ];
+    }
+
     /**
      * {@inheritdoc}
      */
     public function rules()
     {
         return [
-            [['description', 'image', 'created_at', 'updated_at', 'created_by', 'updated_by'], 'default', 'value' => null],
             [['name', 'price', 'status'], 'required'],
             [['description'], 'string'],
             [['price'], 'number'],
+            [['imageFile'], 'image', 'extensions' => 'png, jpg, jpeg, webp', 'maxSize' => 10 * 1024 * 1024],
             [['status', 'created_at', 'updated_at', 'created_by', 'updated_by'], 'integer'],
             [['name'], 'string', 'max' => 255],
-            [['image'], 'required', 'message' => 'Kép feltöltése kötelező.'],
             [['image'], 'string', 'max' => 2000],
-            [['created_by'], 'exist', 'skipOnError' => true, 'targetClass' => User::class, 'targetAttribute' => ['created_by' => 'id']],
-            [['updated_by'], 'exist', 'skipOnError' => true, 'targetClass' => User::class, 'targetAttribute' => ['updated_by' => 'id']],
+            [['created_by'], 'exist', 'skipOnError' => true, 'targetClass' => User::className(), 'targetAttribute' => ['created_by' => 'id']],
+            [['updated_by'], 'exist', 'skipOnError' => true, 'targetClass' => User::className(), 'targetAttribute' => ['updated_by' => 'id']],
         ];
     }
 
@@ -60,13 +75,14 @@ class Products extends \yii\db\ActiveRecord
     {
         return [
             'id' => 'ID',
-            'name' => 'Name',
-            'description' => 'Description',
-            'image' => 'Image',
-            'price' => 'Price',
-            'status' => 'Published',
-            'created_at' => 'Created At',
-            'updated_at' => 'Updated At',
+            'name' => 'Név',
+            'description' => 'Leírás',
+            'image' => 'Termék képe',
+            'imageFile' => 'Termék képe',
+            'price' => 'Ár',
+            'status' => 'Közzétett',
+            'created_at' => 'Készítés dátuma',
+            'updated_at' => 'Módosítás dátuma',
             'created_by' => 'Created By',
             'updated_by' => 'Updated By',
         ];
@@ -111,4 +127,67 @@ class Products extends \yii\db\ActiveRecord
         return new \common\models\query\ProductQuery(get_called_class());
     }
 
+    public function save($runValidation = true, $attributeNames = null)
+    {
+        if ($this->imageFile) {
+            $this->image = '/products/' . Yii::$app->security->generateRandomString() . '/' . $this->imageFile->name;
+        }
+
+        $transaction = Yii::$app->db->beginTransaction();
+        $ok = parent::save($runValidation, $attributeNames);
+
+        if ($ok && $this->imageFile) {
+            $fullPath = Yii::getAlias('@frontend/web/storage' . $this->image);
+            $dir = dirname($fullPath);
+            if (!FileHelper::createDirectory($dir) | !$this->imageFile->saveAs($fullPath)) {
+                $transaction->rollBack();
+
+                return false;
+            }
+        }
+
+        $transaction->commit();
+
+        return $ok;
+    }
+
+    public function getImageUrl()
+    {
+        if ($this->image) {
+            return Yii::$app->params['frontendUrl'] . '/storage/' . $this->image;
+        }
+
+        return Yii::$app->params['frontendUrl'] . '/img/no_image_available.png';
+    }
+
+    public static function formatImageUrl($imagePath)
+    {
+        if ($imagePath) {
+            return Yii::$app->params['frontendUrl'] . '/storage' . $imagePath;
+        }
+
+        return Yii::$app->params['frontendUrl'] . '/img/no_image_available.png';
+    }
+
+    public function deleteImage()
+    {
+        if ($this->image) {
+            $fullPath = Yii::getAlias('@frontend/web/storage' . $this->image);
+            if (file_exists($fullPath)) {
+                @unlink($fullPath);
+            }
+            // opcionálisan a mappa törlése, ha üres
+            $dir = dirname($fullPath);
+            if (is_dir($dir) && count(scandir($dir)) === 2) { // csak . és ..
+                @rmdir($dir);
+            }
+        }
+    }
+
+    public function beforeDelete()
+    {
+        if (!parent::beforeDelete()) return false;
+        $this->deleteImage();
+        return true;
+    }
 }

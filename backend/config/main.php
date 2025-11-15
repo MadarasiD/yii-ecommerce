@@ -47,6 +47,9 @@ return [
             'showScriptName' => false,
             'rules' => [],
         ],
+        'formatter' => [
+            'datetimeFormat' => 'php:Y/m/d H:i'
+        ]
 
     ],
     'params' => $params,
