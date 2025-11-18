@@ -83,8 +83,8 @@ class Products extends \yii\db\ActiveRecord
             'status' => 'Közzétett',
             'created_at' => 'Készítés dátuma',
             'updated_at' => 'Módosítás dátuma',
-            'created_by' => 'Created By',
-            'updated_by' => 'Updated By',
+            'created_by' => 'Létrehozta',
+            'updated_by' => 'Módosította',
         ];
     }
 
@@ -167,6 +167,11 @@ class Products extends \yii\db\ActiveRecord
         }
 
         return Yii::$app->params['frontendUrl'] . '/img/no_image_available.png';
+    }
+
+    public function getShortDescription()
+    {
+        return \yii\helpers\StringHelper::truncateWords(strip_tags($this->description), 30);
     }
 
     public function deleteImage()

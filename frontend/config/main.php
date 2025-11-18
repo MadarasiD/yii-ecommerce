@@ -8,7 +8,10 @@ $params = array_merge(
 
 return [
     'id' => 'app-frontend',
+    'name' => 'Yii2 E-commerce',
     'basePath' => dirname(__DIR__),
+    'language' => 'hu-HU',
+    'sourceLanguage' => 'en-US',
     'bootstrap' => ['log'],
     'controllerNamespace' => 'frontend\controllers',
     'components' => [
@@ -36,14 +39,11 @@ return [
         'errorHandler' => [
             'errorAction' => 'site/error',
         ],
-        /*
         'urlManager' => [
             'enablePrettyUrl' => true,
             'showScriptName' => false,
-            'rules' => [
-            ],
+            'rules' => [],
         ],
-        */
     ],
     'params' => $params,
 ];
